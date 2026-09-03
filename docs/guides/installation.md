@@ -24,7 +24,7 @@ To spin up a local Ubuntu-based VM follow the instructions below based on your l
        
     3. Open the UTM app and select the + button to start the creation of the VM. Select Virtualize > Linux.
     
-    4. Set appropriate hardware allocations for memory and CPU Cores depending on your host machine. For deploying the full KARECTL stack we recommend a minimum of 16GB RAM and 8 CPU Cores. 
+    4. Set appropriate hardware allocations for memory and CPU Cores depending on your host machine. For deploying the full K8TRE stack we recommend a minimum of 16GB RAM and 8 CPU Cores. 
 
     5. In the next pane, tick the 'Use Apple Virtualization' box and select Boot from ISO Image. Click Browse... and select the Ubuntu Server ISO image
   
@@ -191,7 +191,7 @@ To spin up a local Ubuntu-based VM follow the instructions below based on your l
     
 
 ## Configure Ubuntu VM
-Prepare the VM to run KARECTL on K3s by installing the following packages and applying configuration settings below:
+Prepare the VM to run K8TRE on K3s by installing the following packages and applying configuration settings below:
   
 ```shell
 sudo apt-get install -y nfs-common
