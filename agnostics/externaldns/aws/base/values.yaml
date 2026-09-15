@@ -16,10 +16,8 @@ serviceAccount:
   name: externaldns-sa
 
 sources:
-  - gateway-httproute
   - ingress
   - pod
-  # - gateway-tlsroute
 
 policy: sync
 txtOwnerId: externaldns
