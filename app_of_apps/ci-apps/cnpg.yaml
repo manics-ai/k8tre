@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnpg
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/manics-ai/k8tre.git
+    targetRevision: antigravity
+    path: agnostics/cnpg/base
+    plugin:
+      name: kustomize-with-envsubst-v1.0
+      env:
+        - name: ENVIRONMENT
+          value: dev
+        - name: DOMAIN
+          value: 192.168.0.66.nip.io
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

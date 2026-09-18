@@ -7,9 +7,9 @@ spec:
   secretName: guacamole-k8tre-tls
   privateKey:
     rotationPolicy: Always
-  commonName: guacamole.dev.k8tre.internal
+  commonName: guacamole.${DOMAIN}
   dnsNames:
-    - guacamole.dev.k8tre.internal
+    - guacamole.${DOMAIN}
   usages:
     - digital signature
     - key encipherment

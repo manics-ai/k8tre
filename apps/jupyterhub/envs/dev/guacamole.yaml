@@ -12,7 +12,7 @@ guacamole:
 #     hub.jupyter.org/network-access-singleuser: "true"
 
 ingress:
-  enabled: true
+  enabled: false
   className: nginx
   annotations:
     # https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/

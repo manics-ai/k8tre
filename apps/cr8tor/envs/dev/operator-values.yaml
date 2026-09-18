@@ -13,7 +13,7 @@ config:
 
 # Storage configuration for dev
 storage:
-  defaultStorageClass: "rwo-default"
+  defaultStorageClass: "local-path"
   defaultVdiSize: "2Gi"
   defaultNotebookSize: "2Gi"
   maxVdiSize: "5Gi"
