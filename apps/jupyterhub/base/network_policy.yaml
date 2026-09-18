@@ -61,3 +61,4 @@ spec:
   - fromEntities:
     - cluster
     - world
+    - host
