@@ -248,7 +248,8 @@ c.KubeSpawner.options_form = custom_options_form  # noqa: F821
 domain = "${DOMAIN}"
 c.GenericOAuthenticator.oauth_callback_url = f"https://jupyter.{domain}/hub/oauth_callback"
 c.GenericOAuthenticator.authorize_url = f"https://keycloak.{domain}/realms/master/protocol/openid-connect/auth"
-if not hasattr(c.KubeSpawner, "extra_env") or c.KubeSpawner.extra_env is None:
-    c.KubeSpawner.extra_env = {}
-c.KubeSpawner.extra_env["STATIC_REDIRECTOR_DESTINATION"] = f"https://jupyter.{domain}/services/guacamole/"
+c.KubeSpawner.extra_env = {
+    "STATIC_REDIRECTOR_DESTINATION": f"https://jupyter.{domain}/services/guacamole/",
+    "STATIC_REDIRECTOR_AUTOREDIRECT": "true",
+}
 
