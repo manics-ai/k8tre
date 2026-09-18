@@ -22,7 +22,7 @@ data:
       }
 
       upstream jhub_upstream {
-        server proxy-public.jupyterhub.svc.cluster.local:80;
+        server proxy-public.jupyterhub.svc.cluster.local.:80;
       }
 
       server {
@@ -40,7 +40,7 @@ data:
         # subrequest to backend validate
         location = /_auth {
           internal;
-          proxy_pass http://portal.backend.svc.cluster.local/auth/validate;
+          proxy_pass http://portal.backend.svc.cluster.local./auth/validate;
           proxy_ssl_verify off;
           proxy_set_header X-Original-URI $request_uri;
           proxy_set_header X-Original-URL $scheme://$host$request_uri;
@@ -180,38 +180,19 @@ spec:
       labels:
         app: jhub-auth-proxy
       annotations:
-        checksum/config: "updated-$(date +%s)"
+        checksum/config: "config-v4"
     spec:
-      initContainers:
-      - name: template-nginx-config
-        image: alpine:3.19
-        env:
-        - name: DOMAIN
-          value: ${DOMAIN}
-        - name: ENVIRONMENT
-          value: ${ENVIRONMENT}
-        command:
-        - sh
-        - -c
-        - |
-          cp /templates/nginx.conf.template /config/nginx.conf
-          echo "Copied nginx config:"
-          cat /config/nginx.conf
-        volumeMounts:
-        - name: config-template
-          mountPath: /templates
-        - name: config-rendered
-          mountPath: /config
       containers:
       - name: nginx
         image: nginx:1.25
+        command: ["nginx", "-g", "daemon off;"]
         ports:
         - name: http
           containerPort: 8080
         volumeMounts:
-        - name: config-rendered
+        - name: config-template
           mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
+          subPath: nginx.conf.template
         readinessProbe:
           httpGet:
             path: /health
@@ -228,8 +209,6 @@ spec:
       - name: config-template
         configMap:
           name: jhub-auth-proxy-nginx-template
-      - name: config-rendered
-        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
