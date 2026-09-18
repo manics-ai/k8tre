@@ -39,6 +39,9 @@ patches:
       kind: Certificate
       name: jupyter-k8tre-tls
 
+generatorOptions:
+  disableNameSuffixHash: true
+
 configMapGenerator:
   - name: jupyterhub-extraconfig
     files:
