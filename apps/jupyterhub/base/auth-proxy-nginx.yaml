@@ -194,9 +194,8 @@ spec:
         - sh
         - -c
         - |
-          apk add --no-cache gettext
-          envsubst '$DOMAIN $ENVIRONMENT' < /templates/nginx.conf.template > /config/nginx.conf
-          echo "Generated nginx config:"
+          cp /templates/nginx.conf.template /config/nginx.conf
+          echo "Copied nginx config:"
           cat /config/nginx.conf
         volumeMounts:
         - name: config-template
