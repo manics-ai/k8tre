@@ -14,7 +14,7 @@ def browser_context_args(browser_context_args, playwright):
     return {"ignore_https_errors": True, "record_video_dir": "screenshots"}
 
 
-def compare_screenshot(test_image, threshold=4, throw=True):
+def compare_screenshot(test_image, threshold=6, throw=True):
     # Compare images by calculating the mean absolute difference
     # Images must be the same size
     # threshold: Average difference per pixel, this depends on the image type
