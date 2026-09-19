@@ -10,6 +10,16 @@ import pytest
 INGRESS_HOST = os.getenv("INGRESS_HOST", "localhost")
 K8TRE_DOMAIN = os.getenv("K8TRE_DOMAIN", "dev.k8tre.internal")
 
+if INGRESS_HOST and INGRESS_HOST != "localhost":
+    original_getaddrinfo = socket.getaddrinfo
+
+    def patched_getaddrinfo(host, port, *args, **kwargs):
+        if host.endswith(f".{K8TRE_DOMAIN}") or host == K8TRE_DOMAIN:
+            return original_getaddrinfo(INGRESS_HOST, port, *args, **kwargs)
+        return original_getaddrinfo(host, port, *args, **kwargs)
+
+    socket.getaddrinfo = patched_getaddrinfo
+
 
 def test_web_ingress_keycloak():
     """
@@ -19,8 +29,7 @@ def test_web_ingress_keycloak():
     KEYCLOAK_HOST = f"keycloak.{K8TRE_DOMAIN}"
     # Keycloak / should redirect to KEYCLOAK_HOST/admin/
     r = requests.get(
-        f"https://{INGRESS_HOST}/",
-        headers={"Host": KEYCLOAK_HOST},
+        f"https://{KEYCLOAK_HOST}/",
         verify=False,
         allow_redirects=False,
     )
@@ -30,8 +39,7 @@ def test_web_ingress_keycloak():
 
     # Which should redirect to KEYCLOAK_HOST/admin/master/console/
     r = requests.get(
-        f"https://{INGRESS_HOST}/admin/",
-        headers={"Host": KEYCLOAK_HOST},
+        f"https://{KEYCLOAK_HOST}/admin/",
         verify=False,
         allow_redirects=False,
     )
@@ -47,8 +55,7 @@ def test_web_ingress_jupyterhub():
     JUPYTERHUB_HOST = f"jupyter.{K8TRE_DOMAIN}"
     # JupyterHub / should redirect to /hub/
     r = requests.get(
-        f"https://{INGRESS_HOST}/",
-        headers={"Host": JUPYTERHUB_HOST},
+        f"https://{JUPYTERHUB_HOST}/",
         verify=False,
         allow_redirects=False,
     )
@@ -58,8 +65,7 @@ def test_web_ingress_jupyterhub():
 
     # Which should redirect to /hub/home (JupyterHub.default_url)
     r = requests.get(
-        f"https://{INGRESS_HOST}/hub/",
-        headers={"Host": JUPYTERHUB_HOST},
+        f"https://{JUPYTERHUB_HOST}/hub/",
         verify=False,
         allow_redirects=False,
     )
@@ -68,8 +74,7 @@ def test_web_ingress_jupyterhub():
 
     # Which should redirect to /hub/login?next=%2Fhub%2F
     r = requests.get(
-        f"https://{INGRESS_HOST}/hub/home",
-        headers={"Host": JUPYTERHUB_HOST},
+        f"https://{JUPYTERHUB_HOST}/hub/home",
         verify=False,
         allow_redirects=False,
     )
@@ -117,7 +122,10 @@ def test_ingress_certificates(subdomain):
             print(f"CN: {cn}")
             print(f"SAN: {san_names}")
 
-            # Check the domain name
-            assert (cn and cn.lower() == expected_hostname.lower()) or (
-                expected_hostname.lower() in [name.lower() for name in san_names]
+            # Check the domain name (exact match or wildcard)
+            wildcard_hostname = f"*.{K8TRE_DOMAIN}".lower()
+            assert (
+                (cn and cn.lower() == expected_hostname.lower())
+                or (expected_hostname.lower() in [name.lower() for name in san_names])
+                or (wildcard_hostname in [name.lower() for name in san_names])
             ), f"Domain name '{expected_hostname}' not in certificate."

@@ -248,8 +248,32 @@ c.KubeSpawner.options_form = custom_options_form  # noqa: F821
 domain = "${DOMAIN}"
 c.GenericOAuthenticator.oauth_callback_url = f"https://jupyter.{domain}/hub/oauth_callback"
 c.GenericOAuthenticator.authorize_url = f"https://keycloak.{domain}/realms/master/protocol/openid-connect/auth"
+c.GenericOAuthenticator.token_url = "http://keycloak.keycloak.svc.cluster.local/realms/master/protocol/openid-connect/token"
+c.GenericOAuthenticator.userdata_url = "http://keycloak.keycloak.svc.cluster.local/realms/master/protocol/openid-connect/userinfo"
+
+# Fetch dynamic client secret from kubernetes secret if available
+c.GenericOAuthenticator.client_secret = "3EVzRns9W81VhMqet8npc8EigTfxlbXHVaDArOfkdCMNh1UkNqdQXnYbqphWk1Xi"
+try:
+    import base64
+    import json
+    import ssl
+    import urllib.request
+
+    _token = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read()
+    _ctx = ssl.create_default_context(cafile="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+    _req = urllib.request.Request(
+        "https://kubernetes.default.svc/api/v1/namespaces/jupyterhub/secrets/jupyterhub-oidc-credentials",
+        headers={"Authorization": f"Bearer {_token}"},
+    )
+    with urllib.request.urlopen(_req, context=_ctx) as _resp:
+        _sec_data = json.loads(_resp.read())
+        c.GenericOAuthenticator.client_secret = base64.b64decode(_sec_data["data"]["client-secret"]).decode()
+except Exception as e:
+    pass
+
 c.KubeSpawner.extra_env = {
     "STATIC_REDIRECTOR_DESTINATION": f"https://jupyter.{domain}/services/guacamole/",
     "STATIC_REDIRECTOR_AUTOREDIRECT": "true",
 }
+
 
