@@ -9,7 +9,7 @@ data:
     events { worker_connections 1024; }
     http {
       # DNS inside cluster
-      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      resolver 10.43.0.10 valid=10s ipv6=off;
       map $http_upgrade $connection_upgrade { default upgrade; "" close; }
 
       # CORS origin mapping - echo back the request origin
@@ -18,7 +18,7 @@ data:
       }
 
       upstream guacamole_upstream {
-        server guacamole.jupyterhub.svc.cluster.local:8080;
+        server guacamole.jupyterhub.svc.cluster.local.:8080;
       }
 
       server {
@@ -36,7 +36,7 @@ data:
         # backend validate logic
         location = /_auth {
           internal;
-          proxy_pass http://portal.backend.svc.cluster.local/auth/validate;
+          proxy_pass http://portal.backend.svc.cluster.local./auth/validate;
           proxy_ssl_verify off;
           proxy_set_header X-Original-URI $request_uri;
           proxy_set_header X-Original-URL $scheme://$host$request_uri;
@@ -245,7 +245,7 @@ data:
           add_header 'Access-Control-Allow-Origin' $cors_origin always;
           add_header 'Access-Control-Allow-Credentials' 'true' always;
 
-          return 302 https://portal.$ENVIRONMENT.$DOMAIN/login?redirect=$scheme://$host$request_uri;
+          return 302 https://portal.${DOMAIN}/login?redirect=$scheme://$host$request_uri;
         }
 
         location @error403 {
@@ -271,39 +271,19 @@ spec:
       labels:
         app: guacamole-auth-proxy
       annotations:
-        checksum/config: "updated-$(date +%s)"
+        checksum/config: "config-v1"
     spec:
-      initContainers:
-      - name: template-nginx-config
-        image: alpine:3.19
-        env:
-        - name: DOMAIN
-          value: ${DOMAIN}
-        - name: ENVIRONMENT
-          value: ${ENVIRONMENT}
-        command:
-        - sh
-        - -c
-        - |
-          apk add --no-cache gettext
-          envsubst '$DOMAIN $ENVIRONMENT' < /templates/nginx.conf.template > /config/nginx.conf
-          echo "Generated nginx config"
-          cat /config/nginx.conf
-        volumeMounts:
-        - name: config-template
-          mountPath: /templates
-        - name: config-rendered
-          mountPath: /config
       containers:
       - name: nginx
         image: nginx:1.25
+        command: ["nginx", "-g", "daemon off;"]
         ports:
         - name: http
           containerPort: 8080
         volumeMounts:
-        - name: config-rendered
+        - name: config-template
           mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
+          subPath: nginx.conf.template
         readinessProbe:
           httpGet:
             path: /health
@@ -327,8 +307,6 @@ spec:
       - name: config-template
         configMap:
           name: guacamole-auth-proxy-nginx-template
-      - name: config-rendered
-        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
