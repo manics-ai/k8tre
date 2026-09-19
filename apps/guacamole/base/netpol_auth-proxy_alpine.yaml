@@ -4,10 +4,38 @@ metadata:
   name: allow-guacamole-auth-proxy-to-alpine-repos
   namespace: jupyterhub
 spec:
-  description: "Allow guacamole auth-proxy access to cluster services and DNS"
+  description: "Allow guacamole auth-proxy minimal egress strictly to DNS, Portal auth validate, and Guacamole upstream"
   endpointSelector:
     matchLabels:
       app: guacamole-auth-proxy
   egress:
-    - toEntities:
-        - cluster
+    # 1. DNS resolution to CoreDNS
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    # 2. Portal backend session validation (/auth/validate)
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": backend
+            app: backend
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    # 3. Guacamole upstream
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": jupyterhub
+            "app.kubernetes.io/name": guacamole
+            "app.kubernetes.io/component": guacamole
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP

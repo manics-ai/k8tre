@@ -62,21 +62,7 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": kube-system
-      toPorts:
-        - ports:
-            - port: "53"
-              protocol: UDP
-            - port: "53"
-              protocol: TCP
-    - toEntities:
-        - cluster
-      toPorts:
-        - ports:
-            - port: "53"
-              protocol: ANY
+
     # DNS resolution limited to DNS servers only
     - toCIDR:
         - 10.0.0.0/8 # Internal DNS servers should be here

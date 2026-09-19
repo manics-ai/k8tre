@@ -89,16 +89,16 @@ storage:
       staging:
         name: k8tre-staging
         create: true
-        storageClassName: rwo-default
+        storageClassName: rwx-default
         accessModes:
-        - ReadWriteOnce
+        - ReadWriteMany
 
       production:
         name: k8tre-prod
         create: true
-        storageClassName: rwo-default
+        storageClassName: rwx-default
         accessModes:
-        - ReadWriteOnce
+        - ReadWriteMany
   lsc:
     env: TARGET_STORAGE_ACCOUNT_LSC_SDE_MNT_PATH
     mountPath: /home/appuser/outputs/lsc
@@ -106,16 +106,16 @@ storage:
       staging:
         name: lsc-staging
         create: true
-        storageClassName: rwo-default
+        storageClassName: rwx-default
         accessModes:
-        - ReadWriteOnce
+        - ReadWriteMany
 
       production:
         name: lsc-prod
         create: true
-        storageClassName: rwo-default
+        storageClassName: rwx-default
         accessModes:
-        - ReadWriteOnce
+        - ReadWriteMany
   nw:
     env: TARGET_STORAGE_ACCOUNT_NW_SDE_MNT_PATH
     mountPath: /home/appuser/outputs/nw
@@ -123,14 +123,14 @@ storage:
       staging:
         name: nw-staging
         create: true
-        storageClassName: rwo-default
+        storageClassName: rwx-default
         accessModes:
-        - ReadWriteOnce
+        - ReadWriteMany
 
       production:
         name: nw-prod
         create: true
-        storageClassName: rwo-default
+        storageClassName: rwx-default
         accessModes:
-        - ReadWriteOnce
+        - ReadWriteMany
 

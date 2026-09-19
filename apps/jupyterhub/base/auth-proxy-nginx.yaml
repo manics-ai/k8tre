@@ -9,7 +9,7 @@ data:
     events { worker_connections 1024; }
     http {
       # DNS inside cluster
-      resolver 10.43.0.10 valid=10s ipv6=off;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
 
       # Increase header size to handle large cookies
       large_client_header_buffers 4 32k;
@@ -180,7 +180,7 @@ spec:
       labels:
         app: jhub-auth-proxy
       annotations:
-        checksum/config: "config-v4"
+        checksum/config: "config-v5"
     spec:
       containers:
       - name: nginx

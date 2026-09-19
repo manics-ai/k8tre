@@ -339,6 +339,39 @@ Then re-run to confirm cluster DNS forwarding is working:
 kubectl run dnsutils --image=busybox:1.28 --restart=Never -it --rm -- nslookup github.com
 ```
 
+### Storage Classes (rwo-default & rwx-default)
+
+K8TRE applications abstract persistent storage through two standard storage classes:
+- `rwo-default` (`ReadWriteOnce`): Used for single-pod volumes (e.g., databases, user notebooks).
+- `rwx-default` (`ReadWriteMany`): Used for shared multi-pod storage (e.g., project staging/production outputs).
+
+On a single-node K3s cluster or CI environment, both classes can be backed by K3s's built-in `local-path-provisioner`. By default, `local-path-provisioner` only permits `ReadWriteOnce`. To enable `ReadWriteMany` (RWX) volumes without running heavy distributed storage (like Longhorn), configure `sharedFileSystemPath` on the provisioner:
+
+```shell
+# 1. Configure local-path-provisioner to support ReadWriteMany (RWX)
+kubectl patch configmap local-path-config -n kube-system --type merge -p '{"data":{"config.json":"{\n  \"nodePathMap\":[],\n  \"sharedFileSystemPath\": \"/var/lib/rancher/k3s/storage\"\n}"}}'
+kubectl rollout restart deployment local-path-provisioner -n kube-system
+
+# 2. Create standard rwo-default and rwx-default storage classes
+cat << 'EOF' | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rwo-default
+provisioner: rancher.io/local-path
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rwx-default
+provisioner: rancher.io/local-path
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+EOF
+```
+
 ## ArgoCD
 K8TRE follows a declarative approach to deploy all agnostic and application-level components into a target cluster from a source git repository. To manage and automate this process, K8TRE relies on ArgoCD. If ArgoCD and GitOps model is unfamiliar, we first recommand gaining a brief understanding of what Argo is and why it is central to K8TRE [here](https://argo-cd.readthedocs.io/en/stable/).
 

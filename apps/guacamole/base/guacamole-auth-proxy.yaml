@@ -9,7 +9,7 @@ data:
     events { worker_connections 1024; }
     http {
       # DNS inside cluster
-      resolver 10.43.0.10 valid=10s ipv6=off;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
       map $http_upgrade $connection_upgrade { default upgrade; "" close; }
 
       # CORS origin mapping - echo back the request origin
@@ -271,7 +271,7 @@ spec:
       labels:
         app: guacamole-auth-proxy
       annotations:
-        checksum/config: "config-v1"
+        checksum/config: "config-v2"
     spec:
       containers:
       - name: nginx
