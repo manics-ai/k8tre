@@ -243,6 +243,9 @@ async def custom_options_form(spawner):
 c.KubeSpawner.modify_pod_hook = modify_pod_hook  # noqa: F821
 c.JupyterHub.spawner_class = KubeSpawnerGuac  # noqa: F821
 c.KubeSpawner.options_form = custom_options_form  # noqa: F821
+c.KubeSpawner.http_timeout = 120  # noqa: F821
+c.KubeSpawner.start_timeout = 300  # noqa: F821
+
 
 # Override OAuth and redirector URLs with substituted domain
 domain = "${DOMAIN}"

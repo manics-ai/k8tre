@@ -51,10 +51,11 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    # Allow access to kube-system namespace
+    # Allow access to CoreDNS and kube-system DNS
     - toEndpoints:
         - matchLabels:
-            k8s:io.kubernetes.pod.namespace: kube-system
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
       toPorts:
         - ports:
             - port: "53"
@@ -64,15 +65,19 @@ spec:
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
-            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toEntities:
+        - cluster
       toPorts:
         - ports:
             - port: "53"
               protocol: ANY
-          rules:
-            dns:
-              - matchPattern: "*"
-    # DNS resolution limited to DNS servers only; Sense check this
+    # DNS resolution limited to DNS servers only
     - toCIDR:
         - 10.0.0.0/8 # Internal DNS servers should be here
         - 172.16.0.0/12
@@ -90,5 +95,8 @@ spec:
             hub.jupyter.org/network-access-singleuser: "true"
       toPorts:
         - ports:
+            - port: "8888"
+              protocol: TCP
             - port: "notebook-port"
               protocol: TCP
+
