@@ -17,11 +17,11 @@ spec:
   # Source configuration defines where to find the application manifests
   source:
     # The Git repository containing all application definitions
-    repoURL: https://github.com/k8tre/k8tre.git
+    repoURL: https://github.com/manics-ai/k8tre.git
     # The branch or tag to use - typically the main branch
     # Create a copy of this tile and change this to a feature branch for development
     # Use kubectl apply -k root-app-of-apps.yaml to deploy the application in your development environment
-    targetRevision: main
+    targetRevision: antigravity
     # The directory within the repository containing ApplicationSet definitions
     path: appsets
     kustomize:
@@ -35,16 +35,16 @@ spec:
           patch: |-
             - op: replace
               path: /spec/generators/0/matrix/generators/0/git/repoURL
-              value: https://github.com/k8tre/k8tre.git
+              value: https://github.com/manics-ai/k8tre.git
             - op: replace
               path: /spec/template/spec/source/repoURL
-              value: https://github.com/k8tre/k8tre.git
+              value: https://github.com/manics-ai/k8tre.git
             - op: replace
               path: /spec/generators/0/matrix/generators/0/git/revision
-              value: main
+              value: antigravity
             - op: replace
               path: /spec/template/spec/source/targetRevision
-              value: main
+              value: antigravity
 
   # Destination defines where to deploy the manifests
   destination:
