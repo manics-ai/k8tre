@@ -120,9 +120,7 @@ singleuser:
     pullPolicy: Always
   # Use default entrypoint
   cmd:
-  extraEnv:
-    STATIC_REDIRECTOR_DESTINATION: https://jupyter.${DOMAIN}/services/guacamole/
-    STATIC_REDIRECTOR_AUTOREDIRECT: "true"
+  extraEnv: {}
   extraContainers:
     - name: ubuntu-mate
       # Set by kubespawner_override, but this will automatically pull it

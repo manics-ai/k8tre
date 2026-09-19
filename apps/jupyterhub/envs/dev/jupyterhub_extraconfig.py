@@ -271,9 +271,10 @@ try:
 except Exception as e:
     pass
 
-c.KubeSpawner.extra_env = {
-    "STATIC_REDIRECTOR_DESTINATION": f"https://jupyter.{domain}/services/guacamole/",
-    "STATIC_REDIRECTOR_AUTOREDIRECT": "true",
-}
+if not hasattr(c.KubeSpawner, "environment") or c.KubeSpawner.environment is None:
+    c.KubeSpawner.environment = {}
+c.KubeSpawner.environment["STATIC_REDIRECTOR_DESTINATION"] = f"https://jupyter.{domain}/services/guacamole/"
+c.KubeSpawner.environment["STATIC_REDIRECTOR_AUTOREDIRECT"] = "true"
+
 
 
