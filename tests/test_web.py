@@ -63,23 +63,24 @@ def test_web_ingress_jupyterhub():
     assert r.status_code == 302
     assert r.headers["Location"] == "/hub/"
 
-    # Which should redirect to /hub/home (JupyterHub.default_url)
+    # Which should redirect to /hub/home or directly to /hub/login (if auto_login enabled)
     r = requests.get(
         f"https://{JUPYTERHUB_HOST}/hub/",
         verify=False,
         allow_redirects=False,
     )
     assert r.status_code == 302
-    assert r.headers["Location"] == "/hub/home"
+    assert r.headers["Location"] in ["/hub/home", "/hub/login?next=%2Fhub%2F"]
 
-    # Which should redirect to /hub/login?next=%2Fhub%2F
-    r = requests.get(
-        f"https://{JUPYTERHUB_HOST}/hub/home",
-        verify=False,
-        allow_redirects=False,
-    )
-    assert r.status_code == 302
-    assert r.headers["Location"].startswith("/hub/login")
+    if r.headers["Location"] == "/hub/home":
+        # Which should redirect to /hub/login?next=%2Fhub%2F
+        r = requests.get(
+            f"https://{JUPYTERHUB_HOST}/hub/home",
+            verify=False,
+            allow_redirects=False,
+        )
+        assert r.status_code == 302
+        assert r.headers["Location"].startswith("/hub/login")
 
 
 @pytest.mark.parametrize("subdomain", ["guacamole", "jupyter", "keycloak"])
