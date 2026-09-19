@@ -1,7 +1,0 @@
-
-- op: replace
-  path: /spec/commonName
-  value: jupyter.${DOMAIN}
-- op: replace
-  path: /spec/dnsNames/0
-  value: jupyter.${DOMAIN}
