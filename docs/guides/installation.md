@@ -451,8 +451,8 @@ default via 172.26.64.1 dev eth0 proto dhcp src 172.26.68.121 metric 100
 Using 172.26.64.1 (and assuming a 255.255.255.0 net mask) i.e. 172.26.64.0-172.26.64.255 a example subnet for metallb-ip-range could be **172.26.64.240-172.26.64.250**
 
 !!! note "Minimal vs Full Install"
-    For resource-constrained single-node VMs or CI environments (e.g. 16 GB RAM), use the minimal profile flags (`profile=minimal` and the `skip-*` labels) to deploy core TRE components (Keycloak, Portal, cr8tor, JupyterHub, Guacamole).
-    Users with larger development clusters who wish to deploy and test all components (including Longhorn, Active Directory, and Prometheus observability metrics) can omit `profile=minimal` and the `skip-*` labels.
+    For resource-constrained single-node VMs or CI environments (e.g. 16 GB RAM), use the minimal profile flags (`profile=minimal` and the `skip-*` labels) to deploy core TRE components (Keycloak, Portal, cr8tor, JupyterHub, Guacamole, Active Directory).
+    Users with larger development clusters who wish to deploy and test all components (including Longhorn and Prometheus observability metrics) can omit `profile=minimal` and the `skip-*` labels.
 
 ```shell {.ci}
 # For a minimal / CI install on a single-node VM (using hostNetwork gateway without MetalLB):
@@ -465,14 +465,13 @@ argocd cluster set in-cluster \
     --label external-domain=${K8TRE_DOMAIN:-dev.k8tre.internal} \
     --label profile=minimal \
     --label skip-observability-metrics=true \
-    --label skip-ad=true \
     --label skip-external-dns=true \
     --label skip-storage-class=true \
     --core
 kubectl config set-context --current --namespace=default
 ```
 
-For minimal installs without `kare-dns`, configure CoreDNS to resolve K8TRE domains to the node IP so that in-cluster pods (e.g. cr8tor-operator, backend) can communicate via the Gateway API:
+For minimal installs without `kare-dns`, configure CoreDNS to resolve K8TRE domains to the node IP so that in-cluster pods (e.g. cr8tor-operator, backend) can communicate via the Gateway API, and resolve Active Directory domains (`dc0.ad.${DOMAIN}`) to the samba service:
 ```shell {.ci}
 NODE_IP=$(hostname -I | awk '{print $1}')
 DOMAIN=${K8TRE_DOMAIN:-dev.k8tre.internal}
@@ -484,11 +483,21 @@ metadata:
   namespace: kube-system
 data:
   k8tre.server: |
+    ad.${DOMAIN}:53 {
+      rewrite stop name exact dc0.ad.${DOMAIN} samba.ad.svc.cluster.local
+      rewrite stop name exact ad.${DOMAIN} samba.ad.svc.cluster.local
+      kubernetes cluster.local in-addr.arpa ip6.arpa {
+        pods insecure
+        fallthrough
+      }
+      forward . /etc/resolv.conf
+    }
     ${DOMAIN}:53 {
       hosts {
         ${NODE_IP} ${DOMAIN} argocd.${DOMAIN} cr8tor.${DOMAIN} guacamole.${DOMAIN} jupyter.${DOMAIN} keycloak.${DOMAIN} portal.${DOMAIN} gitea.${DOMAIN}
         fallthrough
       }
+      forward . /etc/resolv.conf
     }
 EOF
 kubectl rollout restart deployment/coredns -n kube-system

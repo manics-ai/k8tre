@@ -29,7 +29,7 @@ def wait_for_root_app(timeout=300):
     subprocess.run(cmd, check=True)
 
 
-def wait_for_child_apps(expected_apps=11, timeout=600):
+def wait_for_child_apps(expected_apps=12, timeout=600):
     print("Waiting for all child applications...")
     start = time.time()
     while time.time() - start < timeout:

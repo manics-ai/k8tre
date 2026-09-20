@@ -22,9 +22,6 @@ spec:
                   - key: skip-ad
                     operator: NotIn
                     values: ["true"]
-                  - key: profile
-                    operator: NotIn
-                    values: ["minimal"]
   template:
     metadata:
       name: "{{index .path.segments 1}}-{{.nameNormalized}}"
