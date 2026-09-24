@@ -181,15 +181,15 @@ def test_vdi_jupyterhub_in_browser(page: Page) -> None:
         if "Application Finder" in get_vdi_window_titles("diabetes"):
             break
 
-    # Click inside Application Finder input and launch Firefox with JupyterHub URL
+    # Click inside Application Finder input and launch Firefox with Portal login
     page.mouse.click(550, 385)
     page.wait_for_timeout(500)
-    launch_url = f"https://portal.{K8TRE_DOMAIN}/launch/diabetes/jupyterhub"
+    launch_url = f"https://portal.{K8TRE_DOMAIN}/login"
     page.keyboard.type(f"firefox {launch_url}", delay=20)
     page.wait_for_timeout(500)
     page.keyboard.press("Enter")
 
-    # 5. Wait for Firefox and handle Keycloak login redirect if prompted
+    # 5. Wait for Firefox and handle cert warnings, Keycloak login, and JupyterHub launch
     for _ in range(15):
         time.sleep(2)
         wins = get_vdi_window_titles("diabetes")
@@ -197,29 +197,61 @@ def test_vdi_jupyterhub_in_browser(page: Page) -> None:
             break
 
     jupyter_found = False
-    for i in range(25):
+    for i in range(35):
         time.sleep(2)
         wins = get_vdi_window_titles("diabetes")
         if "Jupyter" in wins:
             jupyter_found = True
             break
-        if "Sign in" in wins:
+        elif "Warning" in wins or "Security Risk" in wins:
+            # Handle Firefox self-signed cert warning & first-run onboarding modal
+            page.mouse.click(640, 352)  # Dismiss first-run "Welcome to Firefox" modal if present
+            page.wait_for_timeout(1000)
+            page.mouse.click(691, 437)  # Click "Advanced"
+            page.wait_for_timeout(1000)
+            page.mouse.click(600, 300)  # Focus web page body
+            page.keyboard.press("PageDown")  # Scroll down to reveal Proceed button
+            page.wait_for_timeout(1000)
+            page.mouse.click(582, 674)  # Click "Proceed to ... (Risky)"
+            page.wait_for_timeout(3000)
+        elif "Sign in" in wins:
             # Handle Keycloak login inside VDI browser
             page.keyboard.press("Escape")
             page.wait_for_timeout(500)
-            page.mouse.click(640, 450)
-            page.wait_for_timeout(500)
+            page.mouse.click(640, 450)  # Focus Username field
+            page.wait_for_timeout(300)
             page.keyboard.press("Control+a")
             page.keyboard.press("Backspace")
             page.keyboard.type("trevolution", delay=30)
-            page.keyboard.press("Tab")
+            page.wait_for_timeout(300)
+            page.mouse.click(640, 540)  # Focus Password field
             page.wait_for_timeout(300)
             page.keyboard.press("Control+a")
             page.keyboard.press("Backspace")
             page.keyboard.type("k8tre", delay=30)
+            page.wait_for_timeout(300)
             page.keyboard.press("Enter")
-            page.wait_for_timeout(1000)
-            page.mouse.click(640, 630)
+            page.wait_for_timeout(500)
+            page.mouse.click(640, 642)  # Submit Sign In
+            for _ in range(15):
+                time.sleep(1)
+                if "Sign in" not in get_vdi_window_titles("diabetes"):
+                    break
+        elif "K8TRE" in wins:
+            # Authenticated on Portal: dismiss password prompt and navigate to JupyterHub
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(500)
+            page.keyboard.press("Control+l")
+            page.wait_for_timeout(500)
+            jupyter_launch_url = f"https://portal.{K8TRE_DOMAIN}/launch/diabetes/jupyterhub"
+            page.keyboard.type(jupyter_launch_url, delay=20)
+            page.wait_for_timeout(500)
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(3000)
+            for _ in range(15):
+                time.sleep(1)
+                if "K8TRE" not in get_vdi_window_titles("diabetes"):
+                    break
 
     # 6. Capture screenshot of Guacamole canvas showing JupyterHub inside VDI
     screenshot = Path("screenshots") / "vdi_jupyterhub.png"
