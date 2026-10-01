@@ -22,7 +22,6 @@ jobs:
     timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && 60 || 20 }}
 
     env:
-      K8TRE_DOMAIN: dev.k8tre.internal
       ARGOCD_VERSION: v3.3.8
       CLI_ARCH: amd64
       CILIUM_VERSION: 1.19.3
@@ -50,18 +49,15 @@ jobs:
           pip install -r dev-requirements.txt
           playwright install --with-deps chromium
 
-      - name: Setup NetBird
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          NETBIRD_SETUP_KEY: ${{ secrets.NETBIRD_SETUP_KEY }}
+      - name: Set hostname and domain
         run: |
-          curl -fsSL https://pkgs.netbird.io/install.sh | sudo sh
-          RUNNER_HOST="k8tre-${GITHUB_RUN_ID}"
-          sudo netbird up --setup-key "$NETBIRD_SETUP_KEY" --hostname "$RUNNER_HOST" --allow-server-ssh
-          NB_FQDN=$(netbird status | sed -n 's/.*FQDN:[[:space:]]*//p')
-          echo "Overriding K8TRE_DOMAIN with NetBird FQDN: $NB_FQDN"
-          echo "K8TRE_DOMAIN=$NB_FQDN" >> "$GITHUB_ENV"
-          netbird status
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            NETBIRD_HOST="k8tre-${GITHUB_RUN_ID}"
+            echo "NETBIRD_HOST=$NETBIRD_HOST" >> "$GITHUB_ENV"
+            echo "K8TRE_DOMAIN=$NETBIRD_HOST.netbird.cloud" >> "$GITHUB_ENV"
+          else
+            echo "K8TRE_DOMAIN=dev.k8tre.internal" >> "$GITHUB_ENV"
+          fi
 
       - name: Modify hosts to resolve k8tre.internal URLs
         run: |
@@ -99,10 +95,22 @@ jobs:
         if: always()
         run: ./ci/collect_diagnostics.sh
 
+      - name: Setup Netbird
+        if: always() && github.event_name == 'workflow_dispatch'
+        env:
+          NETBIRD_SETUP_KEY: ${{ secrets.NETBIRD_SETUP_KEY }}
+        run: |
+          curl -fsSL https://pkgs.netbird.io/install.sh | sudo sh
+          sudo netbird up --setup-key "$NETBIRD_SETUP_KEY" --hostname "$NETBIRD_HOST" --allow-server-ssh
+          NB_FQDN=$(netbird status | sed -n 's/.*FQDN:[[:space:]]*//p')
+          if [ "$NB_FQDN" != "$K8TRE_DOMAIN" ]; then
+            echo "ERROR: NB_FQDN $NB_FQDN != $K8TRE_DOMAIN"
+          fi
+          netbird status
+
       - name: Sleep for Netbird
         if: always() && github.event_name == 'workflow_dispatch'
         run: |
-          netbird status
           sleep 30m
 
   # Set a single status check for the whole workflow, so that we can use it in a
