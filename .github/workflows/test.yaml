@@ -19,7 +19,7 @@ jobs:
 
   test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && 60 || 20 }}
 
     env:
       K8TRE_DOMAIN: dev.k8tre.internal
@@ -49,6 +49,19 @@ jobs:
         run: |
           pip install -r dev-requirements.txt
           playwright install --with-deps chromium
+
+      - name: Setup NetBird
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          NETBIRD_SETUP_KEY: ${{ secrets.NETBIRD_SETUP_KEY }}
+        run: |
+          curl -fsSL https://pkgs.netbird.io/install.sh | sudo sh
+          RUNNER_HOST="k8tre-${GITHUB_RUN_ID}"
+          sudo netbird up --setup-key "$NETBIRD_SETUP_KEY" --hostname "$RUNNER_HOST" --allow-server-ssh
+          NB_FQDN=$(netbird status | sed -n 's/.*FQDN:[[:space:]]*//p')
+          echo "Overriding K8TRE_DOMAIN with NetBird FQDN: $NB_FQDN"
+          echo "K8TRE_DOMAIN=$NB_FQDN" >> "$GITHUB_ENV"
+          netbird status
 
       - name: Modify hosts to resolve k8tre.internal URLs
         run: |
@@ -85,6 +98,12 @@ jobs:
       - name: Collect diagnostics, including on failure
         if: always()
         run: ./ci/collect_diagnostics.sh
+
+      - name: Sleep for Netbird
+        if: always() && github.event_name == 'workflow_dispatch'
+        run: |
+          netbird status
+          sleep 30m
 
   # Set a single status check for the whole workflow, so that we can use it in a
   # branch protection rule
