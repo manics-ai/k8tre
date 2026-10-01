@@ -5,8 +5,9 @@ on:
       - main
   push:
     branches:
-      - main
-      - "dev-*"
+      - interactive-ci-access
+      # - main
+      # - "dev-*"
   workflow_dispatch:
 
 jobs:
@@ -19,7 +20,8 @@ jobs:
 
   test:
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && 60 || 20 }}
+    # timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && 60 || 20 }}
+    timeout-minutes: 60
 
     env:
       ARGOCD_VERSION: v3.3.8
@@ -49,13 +51,26 @@ jobs:
           pip install -r dev-requirements.txt
           playwright install --with-deps chromium
 
+      - name: Setup Netbird
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+        env:
+          NETBIRD_SETUP_KEY: ${{ secrets.NETBIRD_SETUP_KEY }}
+        run: |
+          NETBIRD_HOST="k8tre-${GITHUB_RUN_ID}"
+          curl -fsSL https://pkgs.netbird.io/install.sh | sudo sh
+          sudo netbird up --setup-key "$NETBIRD_SETUP_KEY" --hostname "$NETBIRD_HOST" --allow-server-ssh --log-level debug
+
+          NB_FQDN=$(netbird status | sed -n 's/.*FQDN:[[:space:]]*//p')
+          NB_IP=$(netbird status | sed -nE 's/.*IP: ([0-9.]+).*/\1/p')
+          echo "NB_FQDN=$NB_FQDN" >> "$GITHUB_ENV"
+          echo "NB_IP=$NB_IP" >> "$GITHUB_ENV"
+          netbird status
+
       - name: Set hostname and domain
         run: |
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
-            NETBIRD_HOST="k8tre-${GITHUB_RUN_ID}"
-            # NETBIRD_HOST=
-            echo "NETBIRD_HOST=$NETBIRD_HOST" >> "$GITHUB_ENV"
-            echo "K8TRE_DOMAIN=$NETBIRD_HOST.netbird.cloud" >> "$GITHUB_ENV"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch -o "$GITHUB_EVENT_NAME" = push ]; then
+            # echo "K8TRE_DOMAIN=$NB_FQDN" >> "$GITHUB_ENV"
+            echo "K8TRE_DOMAIN=$NB_IP.nip.io" >> "$GITHUB_ENV"
           else
             echo "K8TRE_DOMAIN=dev.k8tre.internal" >> "$GITHUB_ENV"
           fi
@@ -68,45 +83,6 @@ jobs:
           echo "$NODE_IP $K8TRE_SUBDOMAINS" | sudo tee -a /etc/hosts
           echo "127.0.0.1 $K8TRE_SUBDOMAINS" | sudo tee -a /etc/hosts
           cat /etc/hosts
-
-      - name: Setup Netbird
-        if: always() && github.event_name == 'workflow_dispatch'
-        env:
-          NETBIRD_SETUP_KEY: ${{ secrets.NETBIRD_SETUP_KEY }}
-        run: |
-          curl -fsSL https://pkgs.netbird.io/install.sh | sudo sh
-          # Installation script autostarts netbird but this causes problems with
-          # registering the host
-          sudo systemctl stop netbird
-
-          sudo mkdir -p /etc/netbird
-          sudo tee /etc/netbird/config.json > /dev/null <<EOF
-          {
-            "ManagementURL": "https://api.netbird.io:443",
-            "AdminURL": "https://app.netbird.io:443",
-            "SetupKey": "$NETBIRD_SETUP_KEY",
-            "Hostname": "$NETBIRD_HOST",
-            "ServerSSHAllowed": true
-          }
-          EOF
-
-          sudo systemctl start netbird
-
-          # sudo netbird up --setup-key "$NETBIRD_SETUP_KEY" --hostname "$NETBIRD_HOST" --allow-server-ssh --log-level debug
-
-          for i in $(seq 1 30); do
-            if [ -S /var/run/netbird.sock ] && netbird status >/dev/null 2>&1; then
-              break
-            fi
-            sleep 0.5
-          done
-
-          NB_FQDN=$(netbird status | sed -n 's/.*FQDN:[[:space:]]*//p')
-          if [ "$NB_FQDN" != "$K8TRE_DOMAIN" ]; then
-            echo "ERROR: NB_FQDN $NB_FQDN != $K8TRE_DOMAIN"
-            exit
-          fi
-          netbird status
 
       - name: Install deployment
         run: |
@@ -150,7 +126,7 @@ jobs:
       #     netbird status
 
       - name: Sleep for Netbird
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'push')
         run: |
           sleep 30m
 
