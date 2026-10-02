@@ -82,6 +82,10 @@ jobs:
           echo "Mapping subdomains to $NODE_IP and 127.0.0.1:"
           echo "$NODE_IP $K8TRE_SUBDOMAINS" | sudo tee -a /etc/hosts
           echo "127.0.0.1 $K8TRE_SUBDOMAINS" | sudo tee -a /etc/hosts
+          if [ -n "${NB_IP:-}" ]; then
+            echo "Also mapping subdomains to $NB_IP:"
+            echo "$NB_IP $K8TRE_SUBDOMAINS" | sudo tee -a /etc/hosts
+          fi
           cat /etc/hosts
 
       - name: Install deployment
