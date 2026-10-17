@@ -18,3 +18,8 @@ helmCharts:
 
 resources:
   - ../../base
+
+# TODO: Upstream CA bundle configuration to cr8tor-operator Helm chart and remove these patches
+patches:
+  - path: ../../base/patch-operator-ca-bundle.yaml
+  - path: ../../base/patch-vdi-ca-bundle.yaml

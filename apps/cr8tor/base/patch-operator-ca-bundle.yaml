@@ -1,0 +1,25 @@
+# TODO: Upstream CA bundle volume/env configuration into the cr8tor-operator Helm chart
+# so this Kustomize patch can be removed in the future.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cr8tor-operator
+spec:
+  template:
+    spec:
+      containers:
+        - name: operator
+          env:
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
+            - name: REQUESTS_CA_BUNDLE
+              value: /etc/ssl/certs/ca-certificates.crt
+          volumeMounts:
+            - name: ca-bundle
+              mountPath: /etc/ssl/certs/ca-certificates.crt
+              subPath: ca-certificates.crt
+              readOnly: true
+      volumes:
+        - name: ca-bundle
+          configMap:
+            name: k8tre-ca-bundle

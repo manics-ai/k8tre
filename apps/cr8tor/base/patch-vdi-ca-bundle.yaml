@@ -1,0 +1,324 @@
+# TODO: Upstream CA bundle mounting and Firefox CA trust configuration into the
+# cr8tor-operator Helm chart templates (configmap.yaml) so this patch can be removed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cr8tor-operator-vdi-templates
+data:
+  vdi-pod-template.yaml.j2: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: vdi-{{ name }}
+      namespace: {{ namespace }}
+      labels:
+        app: vdi
+        user: "{{ user }}"
+        project: "{{ project }}"
+        k8tre.io/project: "{{ project }}"
+        {% if scheduling and scheduling.labels %}
+        {% for key, value in scheduling.labels.items() %}
+        {{ key }}: "{{ value }}"
+        {% endfor %}
+        {% endif %}
+      {% if scheduling and scheduling.annotations %}
+      annotations:
+        {% for key, value in scheduling.annotations.items() %}
+        {{ key }}: "{{ value }}"
+        {% endfor %}
+      {% endif %}
+    spec:
+      containers:
+        - name: desktop
+          image: "{{ image }}"
+          imagePullPolicy: Always
+          env:
+            {% if password %}
+            - name: NEW_PASSWORD
+              value: "{{ password }}"
+            {% endif %}
+            - name: VDI_USER
+              value: "{{ user }}"
+            - name: VDI_PROJECT
+              value: "{{ project }}"
+            - name: K8TRE_USER
+              value: "{{ user }}"
+            - name: K8TRE_PROJECT
+              value: "{{ project }}"
+            - name: VDI_LINUX_USER
+              value: "{{ linux_user }}"
+            - name: K8TRE_ENVIRONMENT
+              value: "{{ env_vars | selectattr('name', 'equalto', 'K8TRE_ENVIRONMENT') | map(attribute='value') | first | default('dev', true) }}"
+            - name: K8TRE_DOMAIN
+              value: "{{ env_vars | selectattr('name', 'equalto', 'K8TRE_DOMAIN') | map(attribute='value') | first | default('k8tre.io', true) }}"
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
+            - name: REQUESTS_CA_BUNDLE
+              value: /etc/ssl/certs/ca-certificates.crt
+            - name: GIT_SSL_CAINFO
+              value: /etc/ssl/certs/ca-certificates.crt
+            {% if env_vars %}
+            {% for env_var in env_vars %}
+            - name: {{ env_var.name }}
+              value: "{{ env_var.value }}"
+            {% endfor %}
+            {% endif %}
+          ports:
+            - containerPort: 3389
+            - containerPort: 5900
+          readinessProbe:
+            tcpSocket:
+              port: 3389
+            initialDelaySeconds: 5
+            periodSeconds: 2
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "{{ scheduling.resources.requests_cpu if (scheduling and scheduling.resources and scheduling.resources.requests_cpu) else '500m' }}"
+              memory: "{{ scheduling.resources.requests_memory if (scheduling and scheduling.resources and scheduling.resources.requests_memory) else '1Gi' }}"
+            limits:
+              cpu: "{{ scheduling.resources.limits_cpu if (scheduling and scheduling.resources and scheduling.resources.limits_cpu) else '2' }}"
+              memory: "{{ scheduling.resources.limits_memory if (scheduling and scheduling.resources and scheduling.resources.limits_memory) else '4Gi' }}"
+          volumeMounts:
+            - name: home
+              mountPath: /home/ubuntu
+            - name: init-scripts
+              mountPath: /scripts
+            - name: ca-bundle
+              mountPath: /etc/ssl/certs/ca-certificates.crt
+              subPath: ca-certificates.crt
+              readOnly: true
+            - name: root-ca
+              mountPath: /etc/ssl/certs/k8tre-ca.crt
+              subPath: k8tre-ca.crt
+              readOnly: true
+            - name: firefox-policies
+              mountPath: /etc/firefox/policies/policies.json
+              subPath: policies.json
+              readOnly: true
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/bash
+                  - /scripts/init-desktop.sh
+      volumes:
+        - name: home
+          {% if pvc_name %}
+          persistentVolumeClaim:
+            claimName: {{ pvc_name }}
+          {% else %}
+          emptyDir: {}
+          {% endif %}
+        - name: init-scripts
+          configMap:
+            name: vdi-init-scripts
+            defaultMode: 0755
+        - name: ca-bundle
+          configMap:
+            name: k8tre-ca-bundle
+        - name: root-ca
+          configMap:
+            name: k8tre-root-ca
+        - name: firefox-policies
+          configMap:
+            name: vdi-init-scripts
+      terminationGracePeriodSeconds: 10
+      {% if scheduling and scheduling.node_selector %}
+      nodeSelector:
+        {% for key, value in scheduling.node_selector.items() %}
+        {{ key }}: "{{ value }}"
+        {% endfor %}
+      {% endif %}
+      {% if scheduling and scheduling.tolerations %}
+      tolerations:
+        {% for toleration in scheduling.tolerations %}
+        - key: "{{ toleration.key }}"
+          operator: "{{ toleration.operator | default('Equal') }}"
+          {% if toleration.value %}
+          value: "{{ toleration.value }}"
+          {% endif %}
+          {% if toleration.effect %}
+          effect: "{{ toleration.effect }}"
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% if scheduling and scheduling.affinity %}
+      affinity:
+        {{ scheduling.affinity | tojson }}
+      {% endif %}
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: vdi-{{ user }}-{{ project }}
+      namespace: {{ namespace }}
+      labels:
+        app: vdi
+        user: "{{ user }}"
+        project: "{{ project }}"
+    spec:
+      selector:
+        app: vdi
+        user: "{{ user }}"
+        project: "{{ project }}"
+      ports:
+        - name: rdp
+          port: 3389
+          targetPort: 3389
+        - name: vnc
+          port: 5900
+          targetPort: 5900
+      type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vdi-init-scripts
+data:
+  policies.json: |
+    {
+      "policies": {
+        "Certificates": {
+          "Install": [
+            "/etc/ssl/certs/k8tre-ca.crt"
+          ]
+        }
+      }
+    }
+  init-desktop.sh: |
+    #!/bin/bash
+    # Script to create desktop shortcuts
+    set -e
+    echo "Starting VDI Desktop Setup"
+    echo "User: ${K8TRE_USER}"
+    echo "Project: ${K8TRE_PROJECT}"
+    LINUX_USER="${VDI_LINUX_USER:-ubuntu}"
+    echo "Using Linux user: ${LINUX_USER}"
+
+    if [ -n "${K8TRE_ENVIRONMENT}" ] && [ -n "${K8TRE_DOMAIN}" ]; then
+        ENVIRONMENT="${K8TRE_ENVIRONMENT}"
+        DOMAIN="${K8TRE_DOMAIN}"
+        echo "Using explicit environment and domain"
+    elif [ -n "${K8TRE_BACKEND_URL}" ]; then
+        if [[ "${K8TRE_BACKEND_URL}" == *".svc.cluster.local"* ]]; then
+            ENVIRONMENT="${K8TRE_ENVIRONMENT:-dev}"
+            DOMAIN="${K8TRE_DOMAIN:-cluster.local}"
+            echo "Using internal cluster URL with defaults"
+        else
+            BACKEND_HOST=$(echo "${K8TRE_BACKEND_URL}" | sed 's|https\?://portal\.||' | sed 's|/.*||')
+            ENVIRONMENT=$(echo "${BACKEND_HOST}" | cut -d. -f1)
+            DOMAIN="${BACKEND_HOST}"
+            echo "Extracted environment and domain from portal URL"
+        fi
+    else
+        ENVIRONMENT="${K8TRE_ENVIRONMENT:-dev}"
+        DOMAIN="${K8TRE_DOMAIN:-localhost}"
+        echo "Using default environment and domain"
+    fi
+
+    echo "Environment: ${ENVIRONMENT}"
+    echo "Domain: ${DOMAIN}"
+    DESKTOP_DIR="/home/${LINUX_USER}/Desktop"
+    mkdir -p "${DESKTOP_DIR}"
+
+    create_desktop_shortcut() {
+        local name="$1"
+        local url="$2"
+        local icon="$3"
+        local filename="$4"
+
+        cat > "${DESKTOP_DIR}/${filename}" <<EOF
+    [Desktop Entry]
+    Version=1.0
+    Type=Application
+    Name=${name}
+    Comment=Launch ${name} for ${K8TRE_PROJECT} project
+    Exec=firefox --new-window "${url}"
+    Icon=${icon}
+    Terminal=false
+    Categories=Application;Network;
+    EOF
+
+        chmod +x "${DESKTOP_DIR}/${filename}"
+        echo "Created shortcut: ${name}"
+    }
+
+    cat > "${DESKTOP_DIR}/firefox.desktop" <<EOF
+    [Desktop Entry]
+    Version=1.0
+    Type=Application
+    Name=Firefox Browser
+    Comment=Browse the Web
+    Exec=firefox
+    Icon=firefox
+    Terminal=false
+    Categories=Network;WebBrowser;
+    EOF
+    chmod +x "${DESKTOP_DIR}/firefox.desktop"
+
+    if [ -n "${K8TRE_TOKEN}" ]; then
+        SSO_URL="https://portal.${DOMAIN}/auth/sso?token=${K8TRE_TOKEN}&project=${K8TRE_PROJECT}&app=jupyter"
+
+        create_desktop_shortcut \
+            "JupyterHub - ${K8TRE_PROJECT^}" \
+            "${SSO_URL}" \
+            "applications-science" \
+            "jupyterhub.desktop"
+    fi
+
+    mkdir -p /home/${LINUX_USER}/.config/xfce4/xfconf/xfce-perchannel-xml
+
+    cat > /home/${LINUX_USER}/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml <<EOF
+    <?xml version="1.0" encoding="UTF-8"?>
+    <channel name="xfce4-screensaver" version="1.0">
+      <property name="saver" type="empty">
+        <property name="enabled" type="bool" value="false"/>
+        <property name="mode" type="int" value="0"/>
+      </property>
+      <property name="lock" type="empty">
+        <property name="enabled" type="bool" value="false"/>
+      </property>
+    </channel>
+    EOF
+
+    cat > /home/${LINUX_USER}/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml <<EOF
+    <?xml version="1.0" encoding="UTF-8"?>
+    <channel name="xfce4-power-manager" version="1.0">
+      <property name="xfce4-power-manager" type="empty">
+        <property name="dpms-enabled" type="bool" value="false"/>
+        <property name="blank-on-ac" type="int" value="0"/>
+        <property name="dpms-on-ac-sleep" type="uint" value="0"/>
+        <property name="dpms-on-ac-off" type="uint" value="0"/>
+        <property name="lock-screen-suspend-hibernate" type="bool" value="false"/>
+        <property name="logind-handle-lid-switch" type="bool" value="false"/>
+      </property>
+    </channel>
+    EOF
+
+    FIREFOX_PROFILE_DIR="/home/${LINUX_USER}/.mozilla/firefox"
+    mkdir -p "${FIREFOX_PROFILE_DIR}"
+
+    cat > "/home/${LINUX_USER}/user-prefs.js" <<EOF
+    // Auto-generated Firefox preferences for VDI
+    user_pref("browser.startup.homepage", "about:blank");
+    user_pref("browser.startup.page", 0);
+    user_pref("browser.shell.checkDefaultBrowser", false);
+    user_pref("datareporting.healthreport.uploadEnabled", false);
+    user_pref("datareporting.policy.dataSubmissionEnabled", false);
+    user_pref("toolkit.telemetry.enabled", false);
+    user_pref("browser.tabs.warnOnClose", false);
+    user_pref("browser.sessionstore.resume_from_crash", false);
+    EOF
+
+    chown -R ${LINUX_USER}:${LINUX_USER} /home/${LINUX_USER}/Desktop || true
+    chown -R ${LINUX_USER}:${LINUX_USER} /home/${LINUX_USER}/.mozilla 2>/dev/null || true
+    chown -R ${LINUX_USER}:${LINUX_USER} /home/${LINUX_USER}/.config 2>/dev/null || true
+
+    echo "Setup Completed!"
+    echo ""
+    echo "Available shortcuts:"
+    ls -lh "${DESKTOP_DIR}"/*.desktop 2>/dev/null || echo "No .desktop files found"
+    echo ""
