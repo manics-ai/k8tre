@@ -31,6 +31,7 @@ metadataService:
 
 publishService:
   image: "ghcr.io/lsc-sde-crates/cr8tor-publisher/cr8tor-publish-service:0.1.65"
+  # TODO: Upstream default CA bundle support into cr8tor-publisher Helm chart
   volumes:
   - name: secrets-store-inline
     projected:
@@ -40,9 +41,21 @@ publishService:
           name: cr8tor-microserviceapikey-secret
       - secret:
           name: cr8tor-secret
+  - name: ca-bundle
+    configMap:
+      name: k8tre-ca-bundle
+  volumeMounts:
+  - name: ca-bundle
+    mountPath: /etc/ssl/certs/ca-certificates.crt
+    subPath: ca-certificates.crt
+    readOnly: true
   env:
     - name: ENVIRONMENT
       value: "${ENVIRONMENT}"
+    - name: SSL_CERT_FILE
+      value: /etc/ssl/certs/ca-certificates.crt
+    - name: REQUESTS_CA_BUNDLE
+      value: /etc/ssl/certs/ca-certificates.crt
 
     - name: DESTINATION_POSTGRESQL_HOST
       value: "datashield-postgres-cluster-rw.datashield.svc.cluster.local"

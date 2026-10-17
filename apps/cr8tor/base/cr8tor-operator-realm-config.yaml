@@ -7,4 +7,4 @@ data:
   realm-name: k8tre-app
   realm-display-name: K8tre Application Realm
   keycloak-url: "https://keycloak.${DOMAIN}/"
-  keycloak-verify-tls: "false"
+  keycloak-verify-tls: "true"
