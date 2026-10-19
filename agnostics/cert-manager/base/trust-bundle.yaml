@@ -9,11 +9,11 @@ spec:
   sources:
     - useDefaultCAs: true
     - secret:
-        name: "k8tre-root-ca-secret"
-        key: "ca.crt"
+        name: k8tre-root-ca-secret
+        key: ca.crt
   target:
     configMap:
-      key: "ca-certificates.crt"
+      key: ca-certificates.crt
 ---
 apiVersion: trust.cert-manager.io/v1alpha1
 kind: Bundle
@@ -25,8 +25,8 @@ metadata:
 spec:
   sources:
     - secret:
-        name: "k8tre-root-ca-secret"
-        key: "ca.crt"
+        name: k8tre-root-ca-secret
+        key: ca.crt
   target:
     configMap:
-      key: "k8tre-ca.crt"
+      key: k8tre-ca.crt
