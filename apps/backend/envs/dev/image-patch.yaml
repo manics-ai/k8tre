@@ -7,4 +7,5 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ghcr.io/k8tre/k8tre-backend:v1.3.0
+          # https://github.com/k8tre/k8tre-backend/tree/635ff691a0b6151a0f03c43001413d176f4b4851
+          image: ghcr.io/k8tre/k8tre-backend:main@sha256:d93a6c99764f6fab0894f40edcbb4dad6ca052e3114940ce09053f7445aa7868
