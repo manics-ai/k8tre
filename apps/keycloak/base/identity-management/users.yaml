@@ -59,7 +59,7 @@ spec:
   username: trevolution
   email: trevolution@k8tre.io
   enabled: true
-  password: k8tre
+  # password: k8tre
   groups: ["asthma-analyst", "diabetes-admin"]
   keycloak:
     email_verified: true
